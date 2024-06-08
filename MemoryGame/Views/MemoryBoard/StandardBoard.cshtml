@@ -1,0 +1,196 @@
+﻿@{
+    ViewData["Title"] = ViewBag.Board.gameType;
+}
+<style>
+    /* Style for cards */
+    .card {
+        background: repeating-linear-gradient(45deg, #fafafa, #fafafa 10px, #eaeaea 10px, #eaeaea 20px);
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        height: 200px;
+        border: 1px solid black; /* Border for cards */
+        display: flex; /* Create a flex container */
+        justify-content: center; /* Center content horizontally */
+        align-items: center; /* Center content vertically */
+    }
+
+    /* Style for the memory board */
+    #memoryBoard {
+        display: flex; /* Create a flex container */
+        justify-content: center; /* Center content horizontally */
+        align-items: center; /* Center content vertically */
+    }
+
+    /* Style for table */
+    table {
+        border: none; /* Remove table border */
+        table-layout: fixed; /* Maintain fixed column widths */
+        width: 200px; /* Width of the table */
+    }
+
+    /* Style for table rows */
+    tr {
+        border: none; /* Remove border from rows */
+    }
+
+    /* Style for table cells */
+    th, td {
+        border: none; /* Remove border from cells */
+        overflow: hidden; /* Prevent overflow of content */
+        width: 150px; /* Width of cells */
+    }
+</style>
+
+<div id="memoryBoard">
+    <!-- Container for the score board -->
+    <div id="scoreContainer" hx-get="/game/json" hx-trigger="load, click delay:0.1s, every 2s" hx-swap="outerHTML">
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<script>
+    /**
+    * createElement()
+    *
+    * Function to create an element with specified classes
+    */
+    function createElement(elementName, classes) {
+        e = document.createElement(elementName)
+        for (let index = 0; index < classes.length; index++) {
+            e.classList.add(classes[index]);
+        }
+        return e;
+    }
+
+    createMemoryBoard("scoreContainer")
+
+    function createMemoryBoard(divId) {
+        document.body.addEventListener('htmx:beforeSwap', function (evt) {
+            if (evt.detail.target.id === divId) {
+                // Prevent the default swapping behavior
+                evt.preventDefault();
+
+                // Parse the JSON response
+                var jsonData = JSON.parse(evt.detail.xhr.responseText);
+                console.log(jsonData);
+
+                // Check if all cards are matched
+                let allMatched = jsonData.cards.every(card => card.isMatched);
+
+                // If all cards are matched, show game over message
+                if (allMatched) {
+                    // Find the player with the highest score
+                    let winner = jsonData.score1 > jsonData.score2 ? 1 : (jsonData.score1 < jsonData.score2 ? 2 : 0);
+                    let winningScore = Math.max(jsonData.score1, jsonData.score2);
+
+                    // Create H1 element for game over message
+                    let gameOverH1 = createElement("h1", ["text-center"]);
+                    let gameResultText, resultDescription;
+                    if (winner === 0) {
+                        gameResultText = "Drawn";
+                        resultDescription = "It's a draw";
+                    } else {
+                        gameResultText = "Player " + winner + " wins with a score of " + winningScore;
+                        resultDescription = "";
+                    }
+                    gameOverH1.textContent = gameResultText;
+
+                    // Create paragraph for winner announcement
+                    let resultDescriptionParagraph = createElement("p", ["text-center"]);
+                    resultDescriptionParagraph.textContent = resultDescription;
+
+                    // Append game over message to target element
+                    evt.detail.target.innerHTML = '';
+                    evt.detail.target.appendChild(gameOverH1);
+                    evt.detail.target.appendChild(resultDescriptionParagraph);
+                    return;
+                }
+
+                // Create H1 element for player turn
+                let playerTurnH1 = createElement("h1", ["col-12", "text-center"]);
+                playerTurnH1.textContent = "Player " + (jsonData.currentPlayer + 1) + "'s Turn";
+
+                // Create score paragraphs
+                let score1Paragraph = createElement("p", ["me-auto"]);
+                score1Paragraph.textContent = "Score player 1: " + jsonData.score1;
+                let score2Paragraph = createElement("p", ["ms-auto"]);
+                score2Paragraph.textContent = "Score player 2: " + jsonData.score2;
+
+                // Create row for player turn and scores
+                let infoRow = createElement("div", ["row"]);
+                infoRow.appendChild(playerTurnH1);
+
+                // Create a container for player scores, with flexbox layout
+                let scoresCol = createElement("div", ["col-sm-12", "d-flex", "justify-content-between"]);
+
+                // Add paragraphs displaying scores for player 1 and player 2
+                scoresCol.appendChild(score1Paragraph);
+                scoresCol.appendChild(score2Paragraph);
+
+                // Add the container for player scores to the infoRow
+                infoRow.appendChild(scoresCol);
+
+                // Create a wrapper for the table (not necessary, can be removed)
+                let tableWrapper = createElement("table", []);
+
+                // Create the actual table element
+                let table = createElement("table", []);
+
+                // Calculate the number of rows and columns based on the number of cards
+                let rows = jsonData.cards.length / 4;
+                let columns = 4;
+
+                // Initialize the card ID counter
+                let currentCardId = 0;
+
+                // Loop through each row
+                for (let i = 0; i < rows; i++) {
+                    // Create a new table row
+                    let row = createElement("tr", []);
+
+                    // Loop through each column
+                    for (let j = 0; j < columns; j++) {
+                        // Get the current card data
+                        let currentCard = jsonData.cards[currentCardId];
+
+                        // Create a table cell and a div for the card
+                        let td = createElement("td", [])
+                        let div = createElement("div", ["card"])
+
+                        // Set the URL for turning cards (might need to be adjusted)
+                        let url = "@Url.Action("TurnCards", "MemoryBoard")";
+
+                        // Set an onclick attribute for turning cards (if not drawn or matched)
+                        if (!(currentCard.isDrawn || currentCard.isMatched)) {
+                            div.setAttribute("onclick", `sendAsyncRequest("${url}", "${currentCard.cardId}", "POST", null)`);
+                        }
+
+                        // If the card is already drawn or matched, display its memory ID and set white background
+                        if (currentCard.isDrawn || currentCard.isMatched) {
+                            div.textContent = currentCard.memoryId;
+                            div.style.background = "white";
+                        }
+
+                        // Append the card div to the table cell, and the table cell to the row
+                        td.appendChild(div)
+                        row.appendChild(td);
+
+                        // Increment the card ID counter
+                        currentCardId++;
+                    }
+                    // Append the completed row to the table
+                    table.appendChild(row);
+                }
+
+
+                // Append player turn and scores row and table to target element
+                evt.detail.target.innerHTML = '';
+                evt.detail.target.appendChild(infoRow);
+                evt.detail.target.appendChild(table);
+
+            }
+        });
+    }
+</script>
+

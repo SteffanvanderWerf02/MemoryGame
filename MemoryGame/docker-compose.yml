@@ -1,0 +1,14 @@
+version: '1.0'
+name: memory_game
+
+services:
+  memory_game:
+    restart: unless-stopped
+    container_name: memory_game
+    volumes:
+      - ./:/app
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports: 
+      - 443:443

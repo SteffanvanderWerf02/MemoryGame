@@ -1,0 +1,209 @@
+@{
+    ViewData["Title"] = "Loading games";
+    Layout = "LayoutHomescreen";
+}
+
+<style>
+    /* Styling for individual cards */
+    .imageCard {
+        background: repeating-linear-gradient(45deg, #fafafa, #fafafa 10px, #eaeaea 10px, #eaeaea 20px);
+        background-size: contain !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+        height: 100px;
+    }
+
+    .standardCard {
+        background: repeating-linear-gradient(45deg, #fafafa, #fafafa 10px, #eaeaea 10px, #eaeaea 20px);
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        height: 100px;
+        border: 1px solid black; /* Border for cards */
+        display: flex; /* Create a flex container */
+        justify-content: center; /* Center content horizontally */
+        align-items: center; /* Center content vertically */
+    }
+
+    /* Styling for the table */
+    table {
+        border: none;
+        table-layout: fixed;
+        width: 200px;
+    }
+
+    /* Styling for table rows */
+    tr {
+        border: none;
+    }
+
+    /* Styling for table headers and cells */
+    th, td {
+        border: none;
+        overflow: hidden;
+        width: 150px;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="text-center mb-5">Games Saved in Memory</h1>
+            <div class="row row-cols-1 row-cols-md-2 g-4">
+                @foreach (var memoryBoard in ViewBag.memoryGamesSavedInMemory)
+                {
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-dark text-white">
+                                @memoryBoard.gameType
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">Scores</h5>
+                                <p class="card-text">Player 1: @memoryBoard.score1</p>
+                                <p class="card-text">Player 2: @memoryBoard.score2</p>
+                                <h5 class="card-title">Cards</h5>
+                                <div class="table-responsive">
+                                    <table>
+                                        @for (int i = 0; i < memoryBoard.cards.Count / 4; i++)
+                                        {
+                                            <tr>
+                                                @for (int j = 0; j < 4; j++)
+                                                {
+                                                    int currentCardId = i * 4 + j;
+                                                    if (currentCardId < memoryBoard.cards.Count)
+                                                    {
+                                                        var currentCard = memoryBoard.cards[currentCardId];
+                                                        <td>
+                                                            @if (currentCard.GetType() == typeof(MemoryGame.Models.Cards.StandardCard))
+                                                            {
+                                                                <div class="card standardCard"
+                                                                @if (currentCard.isDrawn || currentCard.isMatched)
+                                                                {
+                                                                    <text>style="background: white;"</text>
+                                                                }
+                                                                >
+                                                                @if (currentCard.isDrawn || currentCard.isMatched)
+                                                                {
+                                                                    <p>@currentCard.memoryId</p>
+                                                                }
+                                                                </div>
+                                                            }
+                                                            else if (currentCard.GetType() == typeof(MemoryGame.Models.Cards.PokemonCard))
+                                                            {
+                                                                <div class="card imageCard"
+                                                                @if (currentCard.isDrawn || currentCard.isMatched)
+                                                                {
+                                                                    <text>style="background: url(@currentCard.imagePathFront);"</text>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <text>style="background: url('https://i.pinimg.com/736x/37/17/24/3717242635eb3336ec720d5454b647c8.jpg');"</text>
+                                                                }
+                                                                >
+                                                                </div>
+                                                            }
+                                                        </td>
+                                                    }
+                                                    else
+                                                    {
+                                                        <td></td>
+                                                    }
+                                                }
+                                            </tr>
+                                        }
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                @using (Html.BeginForm("LoadGame", "GameSaveManager", FormMethod.Post))
+                                {
+                                    <button type="submit" class="btn btn-primary btn-sm" name="Loader" value="@memoryBoard.ToJson()">Load Game</button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="row mt-5">
+        <div class="col-12">
+            <h1 class="text-center mb-5">Games Saved on Your Computer</h1>
+            <div class="row row-cols-1 row-cols-md-2 g-4">
+                @foreach (var memoryBoard in ViewBag.memoryGamesSavedOnServer)
+                {
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-dark text-white">
+                                @memoryBoard.gameType
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">Scores</h5>
+                                <p class="card-text">Player 1: @memoryBoard.score1</p>
+                                <p class="card-text">Player 2: @memoryBoard.score2</p>
+                                <h5 class="card-title">Cards</h5>
+
+                                <div class="table-responsive">
+                                    <table>
+                                    @for (int i = 0; i < memoryBoard.cards.Count / 4; i++)
+                                    {
+                                        <tr>
+                                            @for (int j = 0; j < 4; j++)
+                                            {
+                                                int currentCardId = i * 4 + j;
+                                                if (currentCardId < memoryBoard.cards.Count)
+                                                {
+                                                    var currentCard = memoryBoard.cards[currentCardId];
+                                                    <td>
+                                                        @if (currentCard.GetType() == typeof(MemoryGame.Models.Cards.StandardCard))
+                                                        {
+                                                            <div class="card standardCard" 
+                                                            @if (currentCard.isDrawn || currentCard.isMatched)
+                                                            {
+                                                                <text>style="background: white;"</text>
+                                                            }>
+                                                                @if (currentCard.isDrawn || currentCard.isMatched)
+                                                                {
+                                                                <p>@currentCard.memoryId</p>
+                                                            }
+                                                            </div>
+                                                        }
+                                                        else if (currentCard.GetType() == typeof(MemoryGame.Models.Cards.PokemonCard))
+                                                        {
+                                                            <div class="card imageCard"
+                                                            @if (currentCard.isDrawn || currentCard.isMatched)
+                                                            {
+                                                                <text>style="background: url(@currentCard.imagePathFront);"</text>
+                                                            }
+                                                            else
+                                                            {
+                                                                    <text>style="background: url('/image/cards/cardBackcover.jpg');"</text>
+                                                            }
+                                                            >
+                                                            </div>
+                                                        }
+                                                    </td>
+                                                }
+                                                else
+                                                {
+                                                    <td></td>
+                                                }
+                                            }
+                                        </tr>
+                                    }
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                @using (Html.BeginForm("LoadGame", "GameSaveManager", FormMethod.Post))
+                                {
+                                    <button type="submit" class="btn btn-primary btn-sm" name="Loader" value="@memoryBoard.ToJson()">Load Game</button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

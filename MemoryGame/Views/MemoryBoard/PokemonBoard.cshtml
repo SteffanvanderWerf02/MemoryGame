@@ -1,0 +1,192 @@
+﻿@{
+    ViewData["Title"] = ViewBag.Board.gameType;
+}
+<style>
+    /* Styling for individual cards */
+    .card {
+        background: repeating-linear-gradient(45deg, #fafafa, #fafafa 10px, #eaeaea 10px, #eaeaea 20px);
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        height: 200px;
+    }
+
+    /* Styling for the memory board container */
+    #memoryBoard {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* Styling for the table */
+    table {
+        border: none;
+        table-layout: fixed;
+        width: 200px;
+    }
+
+    /* Styling for table rows */
+    tr {
+        border: none;
+    }
+
+    /* Styling for table headers and cells */
+    th, td {
+        border: none;
+        overflow: hidden;
+        width: 150px;
+    }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+
+<div id="memoryBoard">
+    <!-- Placeholder div for the score container, which gets updated dynamically -->
+    <div id="scoreContainer" hx-get="/game/json" hx-trigger="load, click delay:0.1s, every 2s" hx-swap="outerHTML"></div>
+</div>
+
+<script>
+    /**
+     * createElement()
+     *
+     * Function to create an HTML element with specified classes.
+     */
+    function createElement(elementName, classes) {
+        // Create the HTML element
+        e = document.createElement(elementName)
+
+        // Add specified classes to the element
+        for (let index = 0; index < classes.length; index++) {
+            e.classList.add(classes[index]);
+        }
+
+        return e;
+    }
+
+    // Call the function to create the memory board
+    createMemoryBoard("scoreContainer")
+
+    /**
+     * createMemoryBoard()
+     *
+     * Function to dynamically create the memory board based on JSON data.
+     */
+    function createMemoryBoard(divId) {
+        // Listen for the 'htmx:beforeSwap' event
+        document.body.addEventListener('htmx:beforeSwap', function (evt) {
+            // Check if the target element matches the specified ID
+            if (evt.detail.target.id === divId) {
+                // Prevent the default swapping behavior
+                evt.preventDefault();
+
+                // Parse the JSON response
+                var jsonData = JSON.parse(evt.detail.xhr.responseText);
+                console.log(jsonData);
+
+                // Check if all cards are matched
+                let allMatched = jsonData.cards.every(card => card.isMatched);
+
+                // If all cards are matched, show game over message
+                if (allMatched) {
+                    // Determine the winner and their score
+                    let winner = jsonData.score1 > jsonData.score2 ? 1 : (jsonData.score1 < jsonData.score2 ? 2 : 0);
+                    let winningScore = Math.max(jsonData.score1, jsonData.score2);
+
+                    // Create H1 element for game over message
+                    let gameOverH1 = createElement("h1", ["text-center"]);
+                    let gameResultText, resultDescription;
+                    if (winner === 0) {
+                        gameResultText = "Drawn";
+                        resultDescription = "Het is gelijkspel";
+                    } else {
+                        gameResultText = "Player " + winner + " is the winner with a score of " + winningScore;
+                        resultDescription = "";
+                    }
+                    gameOverH1.textContent = gameResultText;
+
+                    // Create paragraph for winner announcement
+                    let resultDescriptionParagraph = createElement("p", ["text-center"]);
+                    resultDescriptionParagraph.textContent = resultDescription;
+
+                    // Append game over message to target element
+                    evt.detail.target.innerHTML = '';
+                    evt.detail.target.appendChild(gameOverH1);
+                    evt.detail.target.appendChild(resultDescriptionParagraph);
+                    return;
+                }
+
+                // Create H1 element for player turn
+                let playerTurnH1 = createElement("h1", ["col-12", "text-center"]);
+                playerTurnH1.textContent = "Player " + (jsonData.currentPlayer + 1) + "'s Turn";
+
+                // Create score paragraphs
+                let score1Paragraph = createElement("p", ["me-auto"]);
+                score1Paragraph.textContent = "Score player 1: " + jsonData.score1;
+                let score2Paragraph = createElement("p", ["ms-auto"]);
+                score2Paragraph.textContent = "Score player 2: " + jsonData.score2;
+
+                // Create row for player turn and scores
+                let infoRow = createElement("div", ["row"]);
+                infoRow.appendChild(playerTurnH1);
+
+                // Create a column div to hold the score paragraphs
+                let scoresCol = createElement("div", ["col-sm-12", "d-flex", "justify-content-between"]);
+                // Append the score paragraphs to the column div
+                scoresCol.appendChild(score1Paragraph);
+                scoresCol.appendChild(score2Paragraph);
+
+                // Append the column div to the info row
+                infoRow.appendChild(scoresCol);
+                // Create table elements to hold the game cards
+                let tableWrapper = createElement("table", []);
+                let table = createElement("table", []);
+
+                // Calculate the number of rows and columns for the table based on the number of cards
+                let rows = jsonData.cards.length / 4;
+                let columns = 4;
+
+                // Initialize the ID for the current card
+                let currentCardId = 0;
+
+                // Iterate over each row and column to create game cards
+                for (let i = 0; i < rows; i++) {
+                    let row = createElement("tr", []);
+
+                    for (let j = 0; j < columns; j++) {
+                        let currentCard = jsonData.cards[currentCardId];
+                        // Create table cell (td) and card div elements
+                        let td = createElement("td", [])
+                        let div = createElement("div", ["card"])
+
+                        // Construct URL for sending requests to turn cards
+                        let url = "@Url.Action("TurnCards", "MemoryBoard")";
+                        // Set onclick attribute for cards that are not yet drawn or matched
+                        if (!(currentCard.isDrawn || currentCard.isMatched)) {
+                            div.setAttribute("onclick", `sendAsyncRequest("${url}", "${currentCard.cardId}", "POST", null)`);
+                        }
+
+                        // Set background image for drawn or matched cards
+                        if (currentCard.isDrawn || currentCard.isMatched) {
+                            div.style.backgroundImage = `url("${currentCard.imagePathFront}")`;
+                        } else {
+                            // Set default background image for face-down cards
+                            div.style.backgroundImage = `url("/image/cards/cardBackcover.jpg")`;
+                        }
+
+                        // Append card div to table cell and table row
+                        td.appendChild(div)
+                        row.appendChild(td);
+                        currentCardId++;
+                    }
+                    // Append table row to the table
+                    table.appendChild(row);
+                }
+
+                // Append player turn and scores row and table to target element
+                evt.detail.target.innerHTML = '';
+                evt.detail.target.appendChild(infoRow);
+                evt.detail.target.appendChild(table);
+            }
+        });
+    }
+</script>
